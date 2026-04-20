@@ -34,16 +34,16 @@ async def async_setup_entry(
     vue: PyEmVue = hass.data[DOMAIN][config_entry.entry_id][VUE_DATA]
 
     # Get the vehicles configured in the Emporia account.
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     vehicles = await loop.run_in_executor(None, vue.get_vehicles)
 
     # Set up sensors for each vehicle.
     vehicleSensors = []
-    for vehicle in vehicles: 
+    for vehicle in vehicles:
         vehicleSensors.append(VehicleSensor(vue, vehicle))
         device_information[vehicle.vehicle_gid] = vehicle
     async_add_entities(vehicleSensors, True)
-    _LOGGER.info("Monitoring ${len(vehicleSensors)} vehicles")
+    _LOGGER.info("Monitoring %d vehicles", len(vehicleSensors))
 
 
 class VehicleSensor(SensorEntity):
