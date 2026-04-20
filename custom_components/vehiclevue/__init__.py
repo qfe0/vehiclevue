@@ -8,7 +8,7 @@ from pyemvue import PyEmVue
 from homeassistant.config_entries import ConfigEntry, SOURCE_IMPORT
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady, HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, VUE_DATA
@@ -54,27 +54,57 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Emporia Vue from a config entry."""
     entry_data = entry.data
     email = entry_data[CONF_EMAIL]
-    password = entry_data[CONF_PASSWORD]
 
-    _LOGGER.info('Setting up Vue client for user ${email}')
+    _LOGGER.info("Setting up Vue client for user %s", email)
 
     vue = PyEmVue(read_timeout=12)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     try:
-        result = await loop.run_in_executor(None, vue.login, email, password)
-        if not result:
-            raise Exception("Could not authenticate with Emporia API")
-        _LOGGER.debug("Logged in ${email}")
-    except Exception:
-        _LOGGER.error("Could not authenticate with Emporia API")
-        return False
+        if entry_data.get("id_token"):
+            # Token-based auth — password is not stored in the config entry.
+            result = await loop.run_in_executor(
+                None, vue.login,
+                None, None,
+                entry_data["id_token"],
+                entry_data["access_token"],
+                entry_data["refresh_token"],
+            )
+        elif entry_data.get(CONF_PASSWORD):
+            # Legacy entry created before the token migration — authenticate once
+            # with the stored password, then update the entry to store tokens only.
+            result = await loop.run_in_executor(
+                None, vue.login, email, entry_data[CONF_PASSWORD]
+            )
+            if result:
+                hass.config_entries.async_update_entry(
+                    entry,
+                    data={
+                        CONF_EMAIL: email,
+                        "gid": entry_data.get("gid", ""),
+                        "id_token": vue.auth.id_token,
+                        "access_token": vue.auth.access_token,
+                        "refresh_token": vue.auth.refresh_token,
+                    },
+                )
+        else:
+            raise ConfigEntryAuthFailed("No credentials available — please re-authenticate")
 
-    try: 
+        if not result:
+            raise ConfigEntryAuthFailed("Emporia authentication failed")
+        _LOGGER.debug("Logged in %s", email)
+    except ConfigEntryAuthFailed:
+        raise
+    except Exception as err:
+        _LOGGER.warning("vehiclevue auth failed: %s", type(err).__name__)
+        raise ConfigEntryAuthFailed("Emporia authentication failed") from err
+
+    try:
         result = await loop.run_in_executor(None, vue.get_vehicles)
-        if len(result) == 0: 
+        if len(result) == 0:
             raise Exception("No vehicles configured in Emporia account.")
-    except Exception: 
-        _LOGGER.error("No vehicles configured in Emporia account.")
+    except Exception as err:
+        _LOGGER.error("No vehicles configured in Emporia account: %s", type(err).__name__)
+        return False
 
     hass.data[DOMAIN][entry.entry_id] = {
         VUE_DATA: vue
