@@ -2,7 +2,7 @@ from pyemvue import PyEmVue, pyemvue, device
 from pyemvue.device import Vehicle, VehicleStatus
 import json, datetime, asyncio
 from datetime import datetime, timedelta
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, PERCENTAGE
+from homeassistant.const import PERCENTAGE
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -51,19 +51,33 @@ class VehicleSensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.BATTERY
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 0
-    _attr_native_unit_of_measurement = PERCENTAGE    
+    _attr_native_unit_of_measurement = PERCENTAGE
 
     def __init__(self, vueC, v):
        # Creates a sensor for the vehicle.
        self.vue = vueC
        self.vehicle = v
+       self.battery_level = None
+       self.extra_attributes = {}
 
-    def update(self) -> None:
+    async def async_update(self) -> None:
         # Update battery level and additional attributes from Emporia API.
-        lastVehicleStatus  = self.vue.get_vehicle_status(self.vehicle.vehicle_gid)
-        self.battery_level = lastVehicleStatus.battery_level 
-        self.extra_attributes = lastVehicleStatus.as_dictionary()      
-        _LOGGER.debug("Fetched vehicle status for vehicle ${self.vehicle} - battery level ${lastVehicleStatus.battery_level}")
+        loop = asyncio.get_running_loop()
+        try:
+            last_status = await loop.run_in_executor(
+                None, self.vue.get_vehicle_status, self.vehicle.vehicle_gid
+            )
+            self.battery_level = last_status.battery_level
+            self.extra_attributes = last_status.as_dictionary()
+            _LOGGER.debug(
+                "Fetched vehicle status for vehicle %s — battery level %s",
+                self.vehicle.vehicle_gid,
+                last_status.battery_level,
+            )
+        except Exception as err:
+            _LOGGER.warning(
+                "Failed to update vehicle %s: %s", self.vehicle.vehicle_gid, type(err).__name__
+            )
 
     @property
     def native_value(self) -> str | None:
@@ -73,8 +87,8 @@ class VehicleSensor(SensorEntity):
     def name(self) -> str:
         return self.vehicle.display_name
 
-    @property 
-    def extra_state_attributes(self) -> str: 
+    @property
+    def extra_state_attributes(self) -> str:
         return  self.extra_attributes
 
     @property
