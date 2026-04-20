@@ -98,14 +98,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.warning("vehiclevue auth failed: %s", type(err).__name__)
         raise ConfigEntryAuthFailed("Emporia authentication failed") from err
 
-    try:
-        result = await loop.run_in_executor(None, vue.get_vehicles)
-        if len(result) == 0:
-            raise Exception("No vehicles configured in Emporia account.")
-    except Exception as err:
-        _LOGGER.error("No vehicles configured in Emporia account: %s", type(err).__name__)
-        return False
-
     hass.data[DOMAIN][entry.entry_id] = {
         VUE_DATA: vue
     }

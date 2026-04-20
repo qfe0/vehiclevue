@@ -115,12 +115,13 @@ async def test_no_credentials_raises_auth_failed(hass, mock_vue):
 # async_setup_entry — post-auth branches
 # ---------------------------------------------------------------------------
 
-async def test_no_vehicles_returns_false(hass, mock_vue):
+async def test_no_vehicles_succeeds_with_zero_sensors(hass, mock_vue):
     hass.data.setdefault(DOMAIN, {})
     entry = _token_entry(hass)
     mock_vue.get_vehicles.return_value = []
 
-    with patch(PATCH_VUE, return_value=mock_vue):
+    with patch(PATCH_VUE, return_value=mock_vue), \
+         patch(PATCH_FWD, new_callable=AsyncMock):
         result = await async_setup_entry(hass, entry)
 
-    assert result is False
+    assert result is True
