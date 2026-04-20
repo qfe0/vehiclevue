@@ -1,6 +1,9 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from pyemvue.auth import Auth
+from pyemvue.customer import Customer
+from pyemvue.device import Vehicle, VehicleStatus
 
 MOCK_EMAIL = "test@example.com"
 MOCK_PASSWORD = "hunter2"
@@ -24,9 +27,15 @@ LEGACY_ENTRY_DATA = {
 }
 
 
+def make_mock_auth(id_token=MOCK_ID_TOKEN, access_token=MOCK_ACCESS_TOKEN, refresh_token=MOCK_REFRESH_TOKEN):
+    auth = create_autospec(Auth, instance=True)
+    auth.tokens = {"id_token": id_token, "access_token": access_token, "refresh_token": refresh_token}
+    return auth
+
+
 @pytest.fixture
 def mock_vehicle():
-    v = MagicMock()
+    v = create_autospec(Vehicle, instance=True)
     v.vehicle_gid = 123
     v.display_name = "Test EV"
     return v
@@ -34,7 +43,7 @@ def mock_vehicle():
 
 @pytest.fixture
 def mock_vehicle_status():
-    s = MagicMock()
+    s = create_autospec(VehicleStatus, instance=True)
     s.battery_level = 75
     s.as_dictionary.return_value = {"battery_level": 75, "charge_status": "charging"}
     return s
@@ -43,10 +52,10 @@ def mock_vehicle_status():
 @pytest.fixture
 def mock_vue(mock_vehicle, mock_vehicle_status):
     vue = MagicMock()
-    vue.customer.customer_gid = int(MOCK_GID)
-    vue.auth.id_token = MOCK_ID_TOKEN
-    vue.auth.access_token = MOCK_ACCESS_TOKEN
-    vue.auth.refresh_token = MOCK_REFRESH_TOKEN
+    customer = create_autospec(Customer, instance=True)
+    customer.customer_gid = int(MOCK_GID)
+    vue.customer = customer
+    vue.auth = make_mock_auth()
     vue.login.return_value = True
     vue.get_vehicles.return_value = [mock_vehicle]
     vue.get_vehicle_status.return_value = mock_vehicle_status

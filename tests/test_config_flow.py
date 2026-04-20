@@ -9,19 +9,17 @@ from custom_components.vehiclevue.const import DOMAIN
 from tests.conftest import (
     MOCK_EMAIL, MOCK_PASSWORD, MOCK_GID,
     MOCK_ID_TOKEN, MOCK_ACCESS_TOKEN, MOCK_REFRESH_TOKEN,
-    TOKEN_ENTRY_DATA,
+    TOKEN_ENTRY_DATA, make_mock_auth,
 )
 
 PATCH_VUE = "custom_components.vehiclevue.config_flow.PyEmVue"
 USER_INPUT = {CONF_EMAIL: MOCK_EMAIL, CONF_PASSWORD: MOCK_PASSWORD}
 
 
-def _mock_vue(login_result=True):
+def _mock_vue(login_result=True, id_token=MOCK_ID_TOKEN):
     vue = MagicMock()
     vue.customer.customer_gid = int(MOCK_GID)
-    vue.auth.id_token = MOCK_ID_TOKEN
-    vue.auth.access_token = MOCK_ACCESS_TOKEN
-    vue.auth.refresh_token = MOCK_REFRESH_TOKEN
+    vue.auth = make_mock_auth(id_token=id_token)
     vue.login.return_value = login_result
     return vue
 
@@ -121,8 +119,7 @@ async def test_reauth_success_updates_entry(hass):
     entry.add_to_hass(hass)
 
     new_id_token = "new_id_tok"
-    new_vue = _mock_vue()
-    new_vue.auth.id_token = new_id_token
+    new_vue = _mock_vue(id_token=new_id_token)
 
     with patch(PATCH_VUE, return_value=new_vue):
         r = await _start_reauth_flow(hass, entry)

@@ -31,13 +31,14 @@ async def validate_input(hass: core.HomeAssistant, data):
         raise InvalidAuth
 
     # Return tokens only — do not persist the password.
+    tokens = vue.auth.tokens
     return {
         "title": f"Emporia User {data[CONF_EMAIL]}",
         "gid": str(vue.customer.customer_gid),
         CONF_EMAIL: data[CONF_EMAIL],
-        "id_token": vue.auth.id_token,
-        "access_token": vue.auth.access_token,
-        "refresh_token": vue.auth.refresh_token,
+        "id_token": tokens["id_token"],
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
     }
 
 

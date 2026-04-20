@@ -81,9 +81,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
                     data={
                         CONF_EMAIL: email,
                         "gid": entry_data.get("gid", ""),
-                        "id_token": vue.auth.id_token,
-                        "access_token": vue.auth.access_token,
-                        "refresh_token": vue.auth.refresh_token,
+                        "id_token": vue.auth.tokens["id_token"],
+                        "access_token": vue.auth.tokens["access_token"],
+                        "refresh_token": vue.auth.tokens["refresh_token"],
                     },
                 )
         else:
