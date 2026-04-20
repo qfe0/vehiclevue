@@ -1,0 +1,6 @@
+# PHCC uses 0.13.x versioning (not calendar versioning).
+# 0.13.316 is the latest release compatible with Python 3.13.
+# 0.13.317+ requires Python >=3.14.
+pytest-homeassistant-custom-component==0.13.316
+# Required so the integration's top-level imports succeed before mocks are applied.
+pyemvue==0.18.6
